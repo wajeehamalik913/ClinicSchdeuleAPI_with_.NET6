@@ -2,6 +2,7 @@ using Clinic.Data;
 using Clinic.Models;
 using ClinicApi.Data;
 using ClinicApi.Interfaces;
+using ClinicApi.Middleware;
 using ClinicApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -52,7 +53,8 @@ options =>
     options.UseMySql(builder.Configuration.GetConnectionString("ClinicDB"),
     Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.0.23-mysql"));
 });
-
+builder.Services.AddControllersWithViews();
+builder.Services.AddRazorPages();
 //Add Scoped services
 builder.Services.AddScoped<IDoctor, DoctorServices>();
 builder.Services.AddScoped<IAuth, AuthServices>();
@@ -104,9 +106,6 @@ builder.Services.AddAuthentication(options =>
     options.TokenValidationParameters = tokenValidationParameters;
 });
 
-builder.Services.AddMvc(options => {
-    options.Filters.Add(typeof(ValidateModelStateAttribute));
-});
 var app = builder.Build();
 
 
@@ -131,4 +130,7 @@ app.MapControllers();
 //Seed the datbase with roles
 ClinicDbInitializer.SeedRolesToDb(app).Wait();
 
+//Adding middleware
+//app.UseMiddleware<ValidationHandlerMiddleware>();
+app.UseMiddleware<ExceptionHandlerMiddleware>();
 app.Run();

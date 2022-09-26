@@ -66,10 +66,10 @@ namespace ClinicApi.Controllers
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenVM refreshTokenVM)
         {
             //checking if request model is valid
-            if (!ModelState.IsValid)
-            {
-                return BadRequest("Enter all required fields");
-            }
+            //if (!ModelState.IsValid)
+            //{
+            //    return BadRequest("Enter all required fields");
+            //}
             var tokenValue = await _Authenticate.RefreshToken(refreshTokenVM);
             return Ok(tokenValue);
 

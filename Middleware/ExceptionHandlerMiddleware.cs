@@ -1,76 +1,74 @@
-﻿//using Newtonsoft.Json;
-//using System.ComponentModel.DataAnnotations;
-//using System.Net;
+﻿using Newtonsoft.Json;
+using System.ComponentModel.DataAnnotations;
+using System.Net;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using System.Net.Http;
+using Microsoft.JSInterop;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Logging;
 
-//namespace ClinicApi.Middleware
-//{
-//    public class ExceptionHandlerMiddleware
-//    {
-//        private const string JsonContentType = "application/json";
-//        private readonly RequestDelegate request;
+namespace ClinicApi.Middleware
+{
+    public class ExceptionHandlerMiddleware
+    {
+       // private readonly ILogger _logger;
+        public ExceptionHandlerMiddleware(RequestDelegate next/*,ILogger logger*/)
+        {
+            this.Next = next;
+            //_logger = logger;
+        }
+        public RequestDelegate Next { get; private set; }
 
-//        /// <summary>
-//        /// Initializes a new instance of the <see cref="ExceptionHandlerMiddleware"/> class.
-//        /// </summary>
-//        /// <param name="next">The next.</param>
-//        public ExceptionHandlerMiddleware(RequestDelegate next)
-//        {
-//            this.request = next;
-//        }
+        public async Task Invoke(HttpContext httpContext) 
+        { 
+            try
+            {
+                await Next(httpContext);
+            }
+            catch (Exception error)
+            {
+                var response = httpContext.Response;
+                response.ContentType = "application/json";
 
-//        /// <summary>
-//        /// Invokes the specified context.
-//        /// </summary>
-//        /// <param name="context">The context.</param>
-//        /// <returns></returns>
-//        public Task Invoke(HttpContext context) => this.InvokeAsync(context);
+                switch (error)
+                {
+                    case TimeoutException e:
+                        //_logger.LogError("timed out");
+                        response.StatusCode = (int)HttpStatusCode.GatewayTimeout;
+                        break;
+                    
+                    case OutOfMemoryException e:
+                        //_logger.LogError("Out of memory!!! You have insufficient storage");
+                        response.StatusCode = (int)HttpStatusCode.InsufficientStorage;
+                        break;
 
-//        async Task InvokeAsync(HttpContext context)
-//        {
-//            try
-//            {
-//                await this.request(context);
-//            }
-//            catch (Exception exception)
-//            {
-//                var httpStatusCode = ConfigurateExceptionTypes(exception);
+                    case KeyNotFoundException e:
+                        //_logger.LogError("Not Found");
+                        response.StatusCode = (int)HttpStatusCode.NotFound;
+                        break;
 
-//                // set http status code and content type
-//                context.Response.StatusCode = httpStatusCode;
-//                context.Response.ContentType = JsonContentType;
+                    case SecurityTokenExpiredException e:
+                        //_logger.LogError("The token is expired");
+                        httpContext.Response.Headers.Add("Token-Expired", "true");
+                       
+                        break;
 
-//                // writes / returns error model to the response
-//                await context.Response.WriteAsync(
-//                    JsonConvert.SerializeObject(new ErrorModelViewModel
-//                    {
-//                        Message = exception.Message
-//                    }));
+                    case UnauthorizedAccessException e:
+                        //_logger.LogError("Unuthorized to access this resource");
+                        response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                        break;
 
-//                context.Response.Headers.Clear();
-//            }
-//        }
-
-//        /// <summary>
-//        /// Configurates/maps exception to the proper HTTP error Type
-//        /// </summary>
-//        /// <param name="exception">The exception.</param>
-//        /// <returns></returns>
-//        private static int ConfigurateExceptionTypes(Exception exception)
-//        {
-//            int httpStatusCode;
-
-//            // Exception type To Http Status configuration 
-//            switch (exception)
-//            {
-//                case var _ when exception is ValidationException:
-//                    httpStatusCode = (int)HttpStatusCode.BadRequest;
-//                    break;
-//                default:
-//                    httpStatusCode = (int)HttpStatusCode.InternalServerError;
-//                    break;
-//            }
-
-//            return httpStatusCode;
-//        }
-//    }
-//}
+                    default:
+                        
+                        response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                        ///_logger.LogError(response.ToString());
+                        break;
+                }
+                
+            }
+            
+            //await Next(httpContext);
+        }
+    }
+}
